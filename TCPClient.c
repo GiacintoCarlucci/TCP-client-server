@@ -17,8 +17,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PROTOPORT 5193            /* default protocol port number */
-#define BUFLEN 1024               /* buffer size for sending and receiving data */
+#define PROTOPORT 5193                                    /* default protocol port number */
+#define BUFLEN 1024                                       /* buffer size for sending and receiving data */
+static const char STOP_MESSAGE[] = "STOP CLIENT PROCESS"; /* stop message that terminates the client when received */
 
 extern int errno;
 char localhost[] = "localhost";   /* default host name */
@@ -70,6 +71,11 @@ int main (int argc, char *argv[]){
   struct hostent *ptrh;   /* pointer to a host table entry */
   struct protoent *ptrp;  /* pointer to a protocol table entry */
   struct sockaddr_in sad; /* structure to hold an IP address */
+  struct msg_struct{                /* structure holding two integers and operation character */
+    int a;
+    int b;
+    int operation;  /* ('A':Add - 'S':Subtract - 'M':Multiply - 'D':Divide) */
+  };
   int sd;                 /* socket descriptor */
   int port;               /* protocol port number */
   char *host;             /* pointer to host name */
@@ -151,34 +157,46 @@ int main (int argc, char *argv[]){
 
   /* Receive a reply from sever. */
 
-  int msg_sent = 0;
-  char string_1[50];
-  char string_2[50];
+
   char result [200];
   char connection[50];
-  char connection2[50];
+  char op = ' ';
+  struct msg_struct msg;
+
   while(1) {
 
+    /* Get connection status from server, if connect fails, quit. */
     if( ! myreceive(sd,connection)){
      break;
     }
-
     printf("%s\n",connection);
 
+    printf("\x1b[32m""Enter first integer: ""\x1b[0m");
+    scanf("%d",&msg.a);
+    /* Clear stdin from newlines */
+    getchar();
 
-    printf("\x1b[32m""Client: Enter string 1 for Server: ""\x1b[0m");
-    fgets(string_1,sizeof(string_1),stdin);
-    printf("\x1b[32m""Client: Enter string 2 for Server: ""\x1b[0m");
-    fgets(string_2,sizeof(string_2),stdin);
+    printf("\x1b[32m""Enter second integer: ""\x1b[0m");
+    scanf("%d",&msg.b);
+    /* Clear stdin from newlines */
+    getchar();
 
-    mysend(sd,string_1);
-    mysend(sd,string_2);
+    printf("\x1b[32m""Enter operation character [A,S,M,D]: ""\x1b[0m");
+    msg.operation = getchar();
+
+    send(sd,&msg,sizeof(msg),0);
 
     if( ! myreceive(sd,result)){
      break;
     }
-     printf("\x1b[33m""Client: Message Received From Server -  %s\n""\x1b[0m",result);
-     break;
+    /* if server sends stop messages, terminate the client */
+    if(strcmp(result,STOP_MESSAGE)==0){
+      printf("\x1b[32m""Closing connection.\n""\x1b[0m");
+      break;
+    }
+
+    printf("\x1b[34m""Message Received From Server -  %s\n""\x1b[0m",result);
+    break;
   }
 
   /* Close the socket. */

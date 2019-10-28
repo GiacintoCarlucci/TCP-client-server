@@ -48,7 +48,6 @@ int myreceive(int socket,char *string){
           return 0;
   }
   string[num] = '\0';
-  printf("\x1b[33m""received: %s\n""\x1b[0m",string );
   return 1;
 }
 
@@ -59,7 +58,6 @@ int mysend(int socket,char *string){
        close(string);
        return 0;
   }
-  printf("sent: %s\n",string);
   return 1;
 }
 
@@ -69,6 +67,11 @@ int main(int argc,char *argv[]){
   struct protoent *ptrp;  /* pointer to a protocol table entry */
   struct sockaddr_in sad; /* structure to hold server's address */
   struct sockaddr_in cad; /* structure to hold client's address */
+  struct msg_struct{                /* structure holding two integers and operation character */
+    int a;
+    int b;
+    int operation;  /* ('A':Add - 'S':Subtract - 'M':Multiply - 'D':Divide) */
+  };
   int sd, sd2;            /* socket descriptors */
   int port;               /* protocol port number */
   int alen;               /* address lenght */
@@ -135,25 +138,48 @@ int main(int argc,char *argv[]){
       exit(1);
     }
 
-    char string_1[50];
-    char string_2[50];
     char connected_succ[50];
     //creating result string
     char result_string [100];
+    float result;
+    struct msg_struct msg;
 
-    snprintf(connected_succ,sizeof(connected_succ),"Connessione avvenuta");
+    snprintf(connected_succ,sizeof(connected_succ),"Connected successfully.");
     mysend(sd2,connected_succ);
         while(1) {
-          myreceive(sd2,string_1);
-          myreceive(sd2,string_2);
-          for(int i = 0; string_1[i]; i++){
-            string_1[i] = tolower(string_1[i]);
+          /* receiving msg struct */
+          recv(sd2,&msg,sizeof(msg),0);
+          /* uppercasing operation character */
+          msg.operation = toupper(msg.operation);
+          /* switching operations for a & b */
+          switch (msg.operation) {
+            case 'A':
+              result = msg.a + msg.b;
+              snprintf(result_string,sizeof(result_string),"\nOperation: <a+b>\nResult: %0.f",result);
+              break;
+            case 'S':
+              result = msg.a - msg.b;
+              snprintf(result_string,sizeof(result_string),"\nOperation: <a-b>\nResult: %0.f",result);
+              break;
+            case 'M':
+              result = msg.a * msg.b;
+              snprintf(result_string,sizeof(result_string),"\nOperation: <a*b>\nResult: %0.f",result);
+              break;
+            case 'D':
+              if (msg.b != 0){
+                result = msg.a / msg.b;
+                snprintf(result_string,sizeof(result_string),"\nOperation: <a/b>\nResult: %0.2f",result);
+              }else{
+                result = 0;
+                snprintf(result_string,sizeof(result_string),"\nOperation: <a/b>\nCalculation Error: Division by zero\nResult: %0.2f",result);
+              }
+              break;
+            default:
+              result = 0;
+              snprintf(result_string,sizeof(result_string),"STOP CLIENT PROCESS");
           }
-          for(int i = 0; string_2[i]; i++){
-            string_2[i] = toupper(string_2[i]);
-          }
-          snprintf(result_string, sizeof(result_string), "%s %s", string_1, string_2);
-          mysend(sd2,result_string);
+          /* sending result to client */
+          send(sd2,result_string,BUFLEN,0);
           break;
         } //End of Inner While...
         //Close Connection Socket
