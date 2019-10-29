@@ -26,9 +26,11 @@ int visits = 0;         /* counts client connections */
 Program:  server
 Purpose:  allocate a socket and thenn repeatedly execute the following:
           (1) wait for the next connection from a client
-          (2) send a short message to the client
-          (3) close the connection
-          (4) go back to step (1)
+          (2) send a connection confirmation to the client
+          (3) receive two numbers and an operation character from the client
+          (4) calulate the operation between the two numbers
+          (5) send result to client
+          (6) go back to step (1)
 
 Syntax:   TCPServer [ port ]
           port - protocol port number to use
@@ -67,15 +69,14 @@ int main(int argc,char *argv[]){
   struct protoent *ptrp;  /* pointer to a protocol table entry */
   struct sockaddr_in sad; /* structure to hold server's address */
   struct sockaddr_in cad; /* structure to hold client's address */
-  struct msg_struct{                /* structure holding two integers and operation character */
+  struct msg_struct{      /* structure holding two integers and operation character */
     int a;
     int b;
-    int operation;  /* ('A':Add - 'S':Subtract - 'M':Multiply - 'D':Divide) */
+    int operation;        /* ('A':Add - 'S':Subtract - 'M':Multiply - 'D':Divide) */
   };
   int sd, sd2;            /* socket descriptors */
   int port;               /* protocol port number */
   int alen;               /* address lenght */
-  char buf[1000];         /* string messages server buffer */
 
   #ifdef WIN32
     WSADATA wsaData;
@@ -138,14 +139,20 @@ int main(int argc,char *argv[]){
       exit(1);
     }
 
+    //connection status
     char connected_succ[50];
-    //creating result string
+    //result string
     char result_string [100];
+    //operation result
     float result;
+    //struct holding two numbers
     struct msg_struct msg;
 
+    //putting string in 'result_string'
     snprintf(connected_succ,sizeof(connected_succ),"Connected successfully.");
+    //sending to client connection status
     mysend(sd2,connected_succ);
+        //Inner loop, used for serving the client
         while(1) {
           /* receiving msg struct */
           recv(sd2,&msg,sizeof(msg),0);
@@ -187,5 +194,4 @@ int main(int argc,char *argv[]){
   }//End of outer while
   closesocket(sd2);
   exit(0);
-
 }
