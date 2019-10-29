@@ -145,7 +145,7 @@ int main(int argc,char *argv[]){
     char result_string [100];
     //operation result
     float result;
-    //struct holding two numbers
+    //struct holding two numbers and an operation character
     struct msg_struct msg;
 
     //putting string in 'result_string'
