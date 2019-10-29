@@ -17,8 +17,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PROTOPORT 5193            /* default protocol port number */
-#define BUFLEN 1024               /* buffer size for sending and receiving data */
+#define PROTOPORT 5193                                    /* default protocol port number */
+#define BUFLEN 1024                                       /* buffer size for sending and receiving data */
+static const char STOP_MESSAGE[] = "STOP CLIENT PROCESS"; /* stop message that terminates the client when received */
 
 extern int errno;
 char localhost[] = "localhost";   /* default host name */
@@ -26,7 +27,8 @@ char localhost[] = "localhost";   /* default host name */
 /*-----------------------------------------------------------------------
 Program:  client
 
-Purpose:  allocate a socket, connect to a server, and print all output
+Purpose:  allocate a socket, connect to a server, send two nubers
+          and an operation character, then print server response
 
 Syntax:   client [host [port]]
 
@@ -60,7 +62,6 @@ int mysend(int socket,char * string){
        close(string);
        return 0;
   }
-  //printf("sent: %s\n",string );
   return 1;
 }
 
@@ -70,11 +71,15 @@ int main (int argc, char *argv[]){
   struct hostent *ptrh;   /* pointer to a host table entry */
   struct protoent *ptrp;  /* pointer to a protocol table entry */
   struct sockaddr_in sad; /* structure to hold an IP address */
+  struct msg_struct{      /* structure holding two integers and operation character */
+    int a;
+    int b;
+    int operation;        /* ('A':Add - 'S':Subtract - 'M':Multiply - 'D':Divide) */
+  };
   int sd;                 /* socket descriptor */
   int port;               /* protocol port number */
   char *host;             /* pointer to host name */
   int n;                  /* number of characters read */
-  char buf[1000];          /* buffer for data from the server */
 
   #ifdef WIN32
     WSADATA wsaData;
@@ -149,43 +154,53 @@ int main (int argc, char *argv[]){
     exit(1);
   }
 
-  /* Receive a reply from sever. */
-
-  int msg_sent = 0;
-  char string_1[50];
-  char string_2[50];
+  //result string from server
   char result [200];
+  //connection status
   char connection[50];
-  char connection2[50];
+  //structure holding two numbers and an operation character
+  struct msg_struct msg;
+
   while(1) {
 
+    /* Get connection status from server, if connect fails, quit. */
     if( ! myreceive(sd,connection)){
      break;
     }
-
     printf("%s\n",connection);
 
-
-    printf("\x1b[32m""Client: Enter string 1 for Server: ""\x1b[0m");
-    fgets(string_1,sizeof(string_1),stdin);
-    printf("\x1b[32m""Client: Enter string 2 for Server: ""\x1b[0m");
-    fgets(string_2,sizeof(string_2),stdin);
-
-    mysend(sd,string_1);
-    mysend(sd,string_2);
-
+    /* Gets first number */
+    printf("\x1b[32m""Enter first integer: ""\x1b[0m");
+    scanf("%d",&msg.a);
+    /* Clear stdin from newlines */
+    getchar();
+    /* Gets second number */
+    printf("\x1b[32m""Enter second integer: ""\x1b[0m");
+    scanf("%d",&msg.b);
+    /* Clear stdin from newlines */
+    getchar();
+    /* Gets operation character */
+    printf("\x1b[32m""Enter operation character [A,S,M,D]: ""\x1b[0m");
+    msg.operation = getchar();
+    /* Sends struct to server */
+    send(sd,&msg,sizeof(msg),0);
+    /* Quit if receive fails */
     if( ! myreceive(sd,result)){
      break;
     }
-     printf("\x1b[33m""Client: Message Received From Server -  %s\n""\x1b[0m",result);
-     break;
+    /* If server sends stop messages, terminate the client */
+    if(strcmp(result,STOP_MESSAGE)==0){
+      printf("\x1b[32m""Closing connection.\n""\x1b[0m");
+      break;
+    }
+    /* Else prints result */
+    printf("\x1b[34m""Message Received From Server -  %s\n""\x1b[0m",result);
+    break;
   }
 
   /* Close the socket. */
-
   closesocket(sd);
 
   /* Terminate the program gracefully. */
-
   exit(0);
 }
