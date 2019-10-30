@@ -47,10 +47,10 @@ Using:
 There is no setup process, just compile the .c files.  
 **Example (using gcc in terminal):**  
 ```
-gcc TCPServer -o server
+gcc TCPServer.c -o server
 ```
 ```
-gcc TCPClient -o client
+gcc TCPClient.c -o client
 ```  
 At this point you will have two files named **client** and **server**, these are your executable files.  
   
